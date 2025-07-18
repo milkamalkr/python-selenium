@@ -4,6 +4,24 @@ from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 
 
+# Hook for screenshot on test failure
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    outcome = yield
+    rep = outcome.get_result()
+
+    if rep.when == "call" and rep.failed:
+        driver = item.funcargs.get("driver")
+        if driver:
+            screenshot_path = f"reports/screenshots/{item.name}.png"
+            driver.save_screenshot(screenshot_path)
+            # Attach to report (pytest-html)
+            if hasattr(item.config, "_html"):
+                extra = getattr(rep, "extra", [])
+                extra.append(item.config._html.extras.image(screenshot_path))
+                rep.extra = extra
+
+
 @pytest.fixture(scope="function")
 def driver():
     # Setup Chrome driver
